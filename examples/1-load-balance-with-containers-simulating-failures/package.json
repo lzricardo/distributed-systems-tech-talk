@@ -1,0 +1,12 @@
+{
+  "name": "1-load-balance-with-containers-simulating-failures",
+  "version": "1.0.0",
+  "description": "Example 1 - simple load balancing with Node.js and Nginx",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
