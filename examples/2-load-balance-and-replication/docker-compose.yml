@@ -1,0 +1,26 @@
+version: '3'
+services:
+  hbase-master:
+    image: harisekhon/hbase
+    container_name: hbase-master
+    ports:
+      - "16010:16010" # HBase Master UI
+      - "2181:2181"   # ZooKeeper
+    environment:
+      - HBASE_ROLE=master
+
+  hbase-region1:
+    image: harisekhon/hbase
+    container_name: hbase-region1
+    environment:
+      - HBASE_ROLE=regionserver
+    depends_on:
+      - hbase-master
+
+  hbase-region2:
+    image: harisekhon/hbase
+    container_name: hbase-region2
+    environment:
+      - HBASE_ROLE=regionserver
+    depends_on:
+      - hbase-master
