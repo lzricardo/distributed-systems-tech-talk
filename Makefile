@@ -1,9 +1,11 @@
-.PHONY: help example-1 example-1-down example-1-logs example-1-status example-1-rebuild example-1-test example-1-kill-app-a example-1-start-app-a example-2 example-2-down example-2-logs example-2-status example-2-shell example-2-kill-region example-2-start-region example-2-test
+.PHONY: help example-1 example-1-down example-1-logs example-1-status example-1-rebuild example-1-test example-1-kill-app-a example-1-start-app-a example-2 example-2-down example-2-logs example-2-status example-2-shell example-2-kill-region example-2-start-region example-2-test example-3 example-3-down example-3-logs example-3-status example-3-rebuild example-3-set-value example-3-get-value example-3-kill-node2 example-3-start-node2
 
 # Diretório do exemplo 1
 EXAMPLE_1_DIR = examples/1-load-balance-with-containers-simulating-failures
 # Diretório do exemplo 2
 EXAMPLE_2_DIR = examples/2-load-balance-and-replication
+# Diretório do exemplo 3
+EXAMPLE_3_DIR = examples/3-example-eventual-consistency
 
 # Define o comando padrão quando apenas 'make' é executado
 .DEFAULT_GOAL := help
@@ -50,6 +52,18 @@ help:
 	@echo "  example-2-kill-region - Para o container region1 para simular falha"
 	@echo "  example-2-start-region - Reinicia o container region1 apos ter sido parado"
 	@echo "  example-2-test       - Exibe dados na tabela users para testar a replicacao"
+	$(ECHO_BLANK)
+	@echo "=== Exemplo 3: Consistencia Eventual entre Nodes ==="
+	$(ECHO_BLANK)
+	@echo "  example-3            - Inicia o exemplo 3 (consistencia eventual entre nodes)"
+	@echo "  example-3-down       - Para os containers do exemplo 3"
+	@echo "  example-3-logs       - Exibe logs em tempo real dos containers do exemplo 3"
+	@echo "  example-3-status     - Exibe o status dos containers do exemplo 3"
+	@echo "  example-3-rebuild    - Reconstroi e reinicia os containers do exemplo 3"
+	@echo "  example-3-set-value  - Grava um valor no node1"
+	@echo "  example-3-get-value  - Verifica o valor armazenado no node2"
+	@echo "  example-3-kill-node2 - Para o container node2 para simular falha"
+	@echo "  example-3-start-node2 - Reinicia o container node2 apos ter sido parado"
 	$(ECHO_BLANK)
 
 ## Inicia o exemplo 1 (load balancing com containers e simulação de falhas)
@@ -177,3 +191,77 @@ example-2-test:
 	$(UTF8_CONFIG)
 	@echo "Executando teste de replicacao - consultando dados da tabela 'users'..."
 	@docker exec -it hbase-master hbase shell -n "scan 'users'" || echo "Erro: verifique se o cluster está ativo e se a tabela 'users' foi criada."
+
+## Inicia o exemplo 3 (consistência eventual entre nodes)
+example-3:
+	$(UTF8_CONFIG)
+	@echo "Iniciando o exemplo 3: Consistencia Eventual entre Nodes..."
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml up -d
+	@echo "Containers iniciados! Aguarde alguns instantes para que os nodes estejam prontos."
+	@echo "Use 'make example-3-set-value' para gravar um valor no node1."
+	@echo "Use 'make example-3-get-value' para verificar se o valor foi replicado para o node2."
+	@echo "Use 'make example-3-logs' para ver os logs em tempo real."
+	@echo "Use 'make example-3-down' para parar os containers."
+
+## Para os containers do exemplo 3
+example-3-down:
+	$(UTF8_CONFIG)
+	@echo "Parando containers do exemplo 3..."
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml down
+	@echo "Containers parados com sucesso."
+
+## Exibe logs em tempo real dos containers do exemplo 3
+example-3-logs:
+	$(UTF8_CONFIG)
+	@echo "Exibindo logs do exemplo 3 (Ctrl+C para sair)..."
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml logs -f
+
+## Exibe o status dos containers do exemplo 3
+example-3-status:
+	$(UTF8_CONFIG)
+	@echo "Status dos containers do exemplo 3:"
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml ps
+
+## Reconstrói e reinicia os containers do exemplo 3
+example-3-rebuild:
+	$(UTF8_CONFIG)
+	@echo "Reconstruindo containers do exemplo 3..."
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml down
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml build --no-cache
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml up -d
+	@echo "Containers reconstruidos e iniciados com sucesso."
+
+## Grava um valor no node1
+example-3-set-value:
+	$(UTF8_CONFIG)
+	@echo "Gravando valor 'Versao1' para a chave 'mensagem' no node1..."
+	@curl -s -X POST -H "Content-Type: application/json" -d "{\"value\": \"Versao1\"}" http://localhost:5001/set/mensagem
+	@echo
+	@echo "Valor gravado no node1. Use 'make example-3-get-value' para verificar a replicacao no node2."
+
+## Verifica o valor no node2
+example-3-get-value:
+	$(UTF8_CONFIG)
+	@echo "Verificando valor da chave 'mensagem' no node2..."
+	@curl -s http://localhost:5002/get/mensagem
+	@echo
+	@echo "Se o valor for o mesmo que foi gravado no node1, a replicacao foi bem-sucedida."
+	@echo "Caso contrario, aguarde alguns instantes para a consistencia eventual ou verifique se o node2 esta ativo."
+
+## Para o container node2 para simular falha
+example-3-kill-node2:
+	$(UTF8_CONFIG)
+	@echo "Parando o container node2 para simular falha no servidor..."
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml stop node2
+	@echo "Container node2 parado com sucesso."
+	@echo "Tente gravar novos valores no node1 com 'make example-3-set-value'."
+	@echo "Depois reinicie o node2 com 'make example-3-start-node2' para ver a replicacao dos dados."
+
+## Reinicia o container node2 após ter sido parado
+example-3-start-node2:
+	$(UTF8_CONFIG)
+	@echo "Reiniciando o container node2..."
+	@docker-compose -f $(EXAMPLE_3_DIR)/docker-compose.yml start node2
+	@echo "Container node2 reiniciado com sucesso."
+	@echo "Aguarde alguns instantes para que o node2 sincronize com o node1."
+	@echo "Use 'make example-3-get-value' para verificar se os dados foram sincronizados."
